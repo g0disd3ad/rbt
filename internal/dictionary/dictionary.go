@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/g0disd3ad/rbt/internal/tree"
 )
@@ -81,6 +82,7 @@ type Storage interface {
 
 type Dictionary struct {
 	data Storage
+	mtx  sync.RWMutex
 }
 
 func NewDictionary(s Storage) *Dictionary {
@@ -92,20 +94,28 @@ func NewDictionary(s Storage) *Dictionary {
 func (d *Dictionary) Insert(key, translation string) error {
 	key = strings.TrimSpace(strings.ToLower(key))
 	translation = strings.TrimSpace(strings.ToLower(translation))
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 	return d.data.Insert(key, translation)
 }
 
 func (d *Dictionary) Remove(key string) error {
 	key = strings.TrimSpace(strings.ToLower(key))
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
 	return d.data.Remove(key)
 }
 
 func (d *Dictionary) Search(key string) ([]string, error) {
 	key = strings.TrimSpace(strings.ToLower(key))
+	d.mtx.RLock()
+	defer d.mtx.RUnlock()
 	return d.data.Search(key)
 }
 
 func (d *Dictionary) InOrderWalk(fn func(key string, translations []string) bool) {
+	d.mtx.RLock()
+	defer d.mtx.RUnlock()
 	d.data.InOrderWalk(fn)
 }
 
@@ -124,7 +134,7 @@ func (d *Dictionary) LoadFromFile(filename string) error {
 		if line == "" {
 			continue
 		}
-		parts := strings.Split(line, "-")
+		parts := strings.Split(line, " - ")
 		if len(parts) == 2 {
 			eng := strings.TrimSpace(parts[0])
 			rus := strings.TrimSpace(parts[1])
@@ -182,9 +192,13 @@ func (d *Dictionary) Print() {
 }
 
 func (d *Dictionary) GetHeight() int {
+	d.mtx.RLock()
+	defer d.mtx.RUnlock()
 	return d.data.Height()
 }
 
 func (d *Dictionary) IsValidTree() bool {
+	d.mtx.RLock()
+	defer d.mtx.RUnlock()
 	return d.data.IsValid()
 }

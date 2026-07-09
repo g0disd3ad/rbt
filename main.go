@@ -16,7 +16,7 @@ func isStrictEnglish(word string) bool {
 		return false
 	}
 	for _, r := range word {
-		if r == '-' || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
+		if r == '-' || r == ' ' || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
 			continue
 		}
 		return false
@@ -29,7 +29,7 @@ func isStrictRussian(word string) bool {
 		return false
 	}
 	for _, r := range word {
-		if r == '-' || (r >= 'а' && r <= 'я') || (r >= 'А' && r <= 'Я') || r == 'ё' || r == 'Ё' {
+		if r == '-' || r == ' ' || (r >= 'а' && r <= 'я') || (r >= 'А' && r <= 'Я') || r == 'ё' || r == 'Ё' {
 			continue
 		}
 		return false
@@ -54,15 +54,45 @@ func main() {
 	rbtStorage := dictionary.NewRBTStorage()
 	dict := dictionary.NewDictionary(rbtStorage)
 	scanner := bufio.NewScanner(os.Stdin)
-
 	fmt.Println("~--- Initialising the dictionary ---~")
 
-	dsn := "host=localhost port=5432 user=postgres password=my_secret_password dbname=dict_db sslmode=disable"
-	pg, dbErr := storage.NewPostgresStorage(dsn)
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
+	dbUser := os.Getenv("DB_USER")
+	dbPassword := os.Getenv("DB_PASSWORD")
+	dbName := os.Getenv("DB_NAME")
+
+	var pg *storage.PostgresStorage
+	var dbErr error
+
+	if dbPassword == "" {
+		fmt.Println("Warning: DB_PASSWORD environment variable is missing. Database storage is disabled.")
+	} else {
+		if dbHost == "" {
+			dbHost = "localhost"
+		}
+		if dbPort == "" {
+			dbPort = "5432"
+		}
+		if dbUser == "" {
+			dbUser = "postgres"
+		}
+		if dbName == "" {
+			dbName = "dict_db"
+		}
+
+		dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+			dbHost, dbPort, dbUser, dbPassword, dbName)
+		pg, dbErr = storage.NewPostgresStorage(dsn)
+		if dbErr != nil {
+			fmt.Printf("Warning: Could not connect to DB: %v\n", dbErr)
+		}
+	}
 
 	if dbErr != nil {
 		fmt.Printf("Warning: Could not connect to DB: %v\n", dbErr)
 	} else {
+		defer pg.Close()
 		fmt.Print("Load data from PostgreSQL database? (y/n): ")
 		if scanner.Scan() {
 			ans := strings.TrimSpace(strings.ToLower(scanner.Text()))
@@ -87,7 +117,7 @@ func main() {
 	}
 	apiServer := api.NewAPI(dict)
 	apiServer.StartServer(":8080")
-	fmt.Println("🚀 API Server is running on http://localhost:8080")
+	fmt.Println("API Server is running on http://localhost:8080")
 	for {
 		printMenu()
 		if !scanner.Scan() {

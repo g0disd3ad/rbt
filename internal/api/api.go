@@ -2,7 +2,9 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/g0disd3ad/rbt/internal/dictionary"
@@ -81,6 +83,8 @@ func (a *API) StartServer(port string) {
 	})
 
 	go func() {
-		http.ListenAndServe(port, mux)
+		if err := http.ListenAndServe(port, mux); err != nil && err != http.ErrServerClosed {
+			fmt.Fprintf(os.Stderr, "\nAPI SERVER ERROR: Failed to start server on the port %s: %v\n", port, err)
+		}
 	}()
 }

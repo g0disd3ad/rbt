@@ -56,14 +56,27 @@ func (p *PostgresStorage) SaveFromTree(walker TreeWalker) error {
 	}
 	defer stmt.Close()
 
+	var walkerErr error
+
 	walker.InOrderWalk(func(key string, translations []string) bool {
 		for _, tr := range translations {
 			if _, err := stmt.Exec(key, tr); err != nil {
+				walkerErr = err
 				return false
 			}
 		}
 		return true
 	})
 
+	if walkerErr != nil {
+		return walkerErr
+	}
 	return tx.Commit()
+}
+
+func (p *PostgresStorage) Close() error {
+	if p.db != nil {
+		return p.db.Close()
+	}
+	return nil
 }

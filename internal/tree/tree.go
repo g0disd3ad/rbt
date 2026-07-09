@@ -81,7 +81,9 @@ func (t *RedBlackTree[K, V]) transplant(x *Node[K, V], y *Node[K, V]) {
 	} else {
 		x.Parent.Right = y
 	}
-	y.Parent = x.Parent
+	if y != t.Nil {
+		y.Parent = x.Parent
+	}
 }
 
 func (t *RedBlackTree[K, V]) insertFixup(z *Node[K, V]) {

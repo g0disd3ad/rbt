@@ -3,5 +3,6 @@
 *.txt
 .vscode/
 .idea/
+.env
 rbt
 dictionary-app
