@@ -137,7 +137,7 @@ func main() {
 			fmt.Print("Enter 'eng - rus': ")
 			if scanner.Scan() {
 				line := scanner.Text()
-				parts := strings.Split(line, "-")
+				parts := strings.SplitN(line, " - ", 2)
 
 				if len(parts) == 2 {
 					eng := strings.TrimSpace(parts[0])
