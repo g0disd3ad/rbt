@@ -6,10 +6,10 @@ The core of the application is a custom implementation of a **self-balancing Red
 ## Features
 
 - **Custom Data Structure:** Hand-written Red-Black tree implementation with manual pointer management, node recoloring, and tree rotations.
-- **Thread Safety:** Fully concurrent REST API and CLI, protected against data races using `sync.RWMutex`.
+- **Thread Safety:** Fully concurrent REST API, protected against data races using `sync.RWMutex`.
 - **Database Persistence:** PostgreSQL integration with transactional data saving and conflict resolution (`ON CONFLICT DO NOTHING`).
 - **Graceful Shutdown:** Proper resource cleanup and database connection handling.
-- **Interactive CLI:** Built-in console menu for direct interaction, tree validation, and file I/O operations.
+- **Fail-Fast API Validation:** Built-in strict input validators for both GET and POST requests to protect the core data structure from corrupted data.
 - **Dockerized:** Ready to deploy via Docker Compose using a lightweight Alpine-based image.
 
 ## 🛠 Tech Stack
@@ -32,14 +32,11 @@ cd rbt
 # Start the application and database
 docker-compose up -d --build
 
-# Attach to the container to use the interactive CLI
-docker attach rbt-api
-
 ```
 
 ### Local Setup
 
-If you want to run it without Docker, ensure PostgreSQL is running and your `.env` file is configured.
+If you want to run it without Docker, ensure PostgreSQL is running, create the schema via init.sql, and configure your .env file.
 
 ```bash
 # Export environment variables or use a tool like godotenv
@@ -96,11 +93,5 @@ Adds a new English-Russian translation pair to the dictionary.
 {
   "status": "success"
 }
-
-```
-
-## 🧪 Tree Validation
-
-The project includes a built-in strict validator to ensure the structural integrity of the Red-Black Tree. You can trigger it via the CLI menu (Option 7) to check the current tree height and verify all Red-Black properties (e.g., black-height balance, no consecutive red nodes).
 
 ```
