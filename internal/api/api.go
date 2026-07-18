@@ -1,10 +1,9 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/g0disd3ad/rbt/internal/dictionary"
@@ -16,7 +15,34 @@ type TranslationRequest struct {
 }
 
 type API struct {
-	dict *dictionary.Dictionary
+	dict   *dictionary.Dictionary
+	server *http.Server
+}
+
+func isStrictEnglish(word string) bool {
+	if word == "" {
+		return false
+	}
+	for _, r := range word {
+		if r == '-' || r == ' ' || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func isStrictRussian(word string) bool {
+	if word == "" {
+		return false
+	}
+	for _, r := range word {
+		if r == '-' || r == ' ' || (r >= 'а' && r <= 'я') || (r >= 'А' && r <= 'Я') || r == 'ё' || r == 'Ё' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func NewAPI(d *dictionary.Dictionary) *API {
@@ -32,6 +58,11 @@ func (a *API) handleSearch(w http.ResponseWriter, r *http.Request) {
 	word := strings.TrimSpace(r.URL.Query().Get("word"))
 	if word == "" {
 		http.Error(w, "Missing 'word' parameter", http.StatusBadRequest)
+		return
+	}
+
+	if !isStrictEnglish(word) {
+		http.Error(w, "Invalid format: 'eng' word must be in English, only English letters allowed", http.StatusBadRequest)
 		return
 	}
 
@@ -59,6 +90,13 @@ func (a *API) handleAdd(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
+	req.Eng = strings.TrimSpace(req.Eng)
+	req.Rus = strings.TrimSpace(req.Rus)
+
+	if !isStrictEnglish(req.Eng) || !isStrictRussian(req.Rus) {
+		http.Error(w, "Invalid format: 'eng' word must be in English, 'rus' word must be in Russian", http.StatusBadRequest)
+		return
+	}
 
 	if err := a.dict.Insert(req.Eng, req.Rus); err != nil {
 		http.Error(w, "Failed to add word", http.StatusInternalServerError)
@@ -69,7 +107,7 @@ func (a *API) handleAdd(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
 }
 
-func (a *API) StartServer(port string) {
+func (a *API) StartServer(port string) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/translate", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -81,10 +119,17 @@ func (a *API) StartServer(port string) {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	})
+	a.server = &http.Server{
+		Addr:    port,
+		Handler: mux,
+	}
 
-	go func() {
-		if err := http.ListenAndServe(port, mux); err != nil && err != http.ErrServerClosed {
-			fmt.Fprintf(os.Stderr, "\nAPI SERVER ERROR: Failed to start server on the port %s: %v\n", port, err)
-		}
-	}()
+	return a.server.ListenAndServe()
+}
+
+func (a *API) Shutdown(ctx context.Context) error {
+	if a.server != nil {
+		return a.server.Shutdown(ctx)
+	}
+	return nil
 }
